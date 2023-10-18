@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
 using OfficeOpenXml;
+using Serilog;
 
 namespace WOC;
 
@@ -28,7 +29,16 @@ public class Helpers
         foreach (var filename in GetFileList(MakeTag(technology)))
         {
             //see bellow
-            WriteToExcel(filename, _excelPackage, siteId);
+            try
+            {
+                WriteToExcel(filename, _excelPackage, siteId);
+            }
+            catch (Exception e)
+            {
+                var message = $"Could not execute query {filename}";
+                Log.Error(e, message);
+                throw new Exception($"Could not execute query {filename}\nCheck the logs for more details.");
+            }
         }
         return _excelPackage;
     }

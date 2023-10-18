@@ -4,6 +4,7 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 appsettings.json
+WOC/logs
 ######################################################################################################
 # Created by https://www.toptal.com/developers/gitignore/api/jetbrains+all,visualstudio,rider
 # Edit at https://www.toptal.com/developers/gitignore?templates=jetbrains+all,visualstudio,rider
