@@ -5,7 +5,7 @@ using Serilog;
 
 namespace WOC;
 
-public class Helpers
+public abstract class Helpers
 {
     private static string? _path;
     private static string? _queryStoreName;
@@ -28,16 +28,17 @@ public class Helpers
         //Execute each selected file and write the result to _excelPackage
         foreach (var filename in GetFileList(MakeTag(technology)))
         {
-            //see bellow
             try
             {
+                //see bellow
                 WriteToExcel(filename, _excelPackage, siteId);
             }
-            catch (Exception e)
+            catch (SqlException e)
             {
-                var message = $"Could not execute query {filename}";
-                Log.Error(e, message);
-                throw new Exception($"Could not execute query {filename}\nCheck the logs for more details.");
+                //rudimentary error logging in case the SQL command fails to execute...
+                e.Data.Add("ex", $"Could not execute query: {filename}");
+                Log.Error("Could not execute query: {filename}", filename);
+                throw;
             }
         }
         return _excelPackage;
