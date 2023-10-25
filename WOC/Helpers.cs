@@ -28,18 +28,7 @@ public abstract class Helpers
         //Execute each selected file and write the result to _excelPackage
         foreach (var filename in GetFileList(MakeTag(technology)))
         {
-            try
-            {
-                //see bellow
-                WriteToExcel(filename, _excelPackage, siteId);
-            }
-            catch (SqlException e)
-            {
-                //rudimentary error logging in case the SQL command fails to execute...
-                e.Data.Add("ex", $"Could not execute query: {filename}");
-                Log.Error("Could not execute query: {filename}", filename);
-                throw;
-            }
+            WriteToExcel(filename, _excelPackage, siteId);
         }
         return _excelPackage;
     }
@@ -49,11 +38,23 @@ public abstract class Helpers
         //self explanatory
         var dataTable = new DataTable();
         using var connection = new SqlConnection(_connectionString);
-        connection.Open();
-        var command = new SqlCommand(query, connection);
-        using var reader = command.ExecuteReader();
-        dataTable.Load(reader);
-        connection.Close();
+        try
+        {
+            connection.Open();
+            var command = new SqlCommand(query, connection);
+            using var reader = command.ExecuteReader();
+            dataTable.Load(reader);
+        }
+        catch (SqlException exception)
+        {
+            Log.Error("Could not execute query:\n---\n{query}\n---\n", query);
+            exception.Data.Add("query", query);
+            throw;
+        }
+        finally
+        {
+            connection.Close();
+        }
         return dataTable;
     }
 

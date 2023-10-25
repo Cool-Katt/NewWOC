@@ -21,12 +21,13 @@ try
     // might change in the future, I don't know if i like this method
     app.UseExceptionHandler(c => c.Run(async context =>
     {
-        await context.Response.WriteAsync("---ERROR---\n");
         var exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error;
-        if (exception?.Data["ex"] != null)
+        if (exception != null)
         {
-            await context.Response.WriteAsync(exception.Data["ex"] + "\n");
-            await context.Response.WriteAsync(exception.Message);
+            var html = File.ReadAllText("ErrorSQL.html")
+                .Replace("~sql placeholder~", exception.Data["query"]?.ToString())
+                .Replace("~message placeholder~", exception.Message);
+            await context.Response.WriteAsync(html);
         }
     }));
     
