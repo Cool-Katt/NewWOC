@@ -18,12 +18,17 @@ public abstract partial class Helpers
     [GeneratedRegex(@"---(?<num>\d*)(?<name>\w+)\.sql$")]
     private static partial Regex LabelRegex();
 
+    [GeneratedRegex(@"^[A-Za-z]{2}\d{4}$")]
+    private static partial Regex SiteIdRegex();
+
     public static void Init(IConfiguration settings, string tech, string siteId)
     {
         //a method for initializing the static class so it can have access to the applicationSettings
         _excelPackage = new ExcelPackage(new MemoryStream());
         _tag = MakeTag(tech);
-        _siteId = siteId.ToUpper(); // TODO: add validation for siteID
+        _siteId = SiteIdRegex().IsMatch(siteId.ToUpper())
+            ? siteId.ToUpper()
+            : throw new InvalidDataException("The SiteID is not in the correct format!");
         _path = settings["QueryStoreDefaultPath"] ?? AppDomain.CurrentDomain.BaseDirectory;
         _queryStoreName = settings["QueryStoreDefaultName"] ?? "QueryStore";
         _connectionString = (MakeTag(tech) == @"(CONS)"
