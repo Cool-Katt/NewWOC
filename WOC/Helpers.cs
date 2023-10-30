@@ -64,7 +64,7 @@ public abstract partial class Helpers
             connection.Open();
             var command = new SqlCommand(query, connection);
             using var reader = command.ExecuteReader();
-            if (reader.HasRows)
+            if (reader.HasRows || _tag != @"(CONS)")
             {
                 dataTable.Load(reader);
             }
