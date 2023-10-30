@@ -1,10 +1,11 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
 using OfficeOpenXml;
+using Serilog;
 
 namespace WOC;
 
-public class Helpers
+public abstract class Helpers
 {
     private static string? _path;
     private static string? _queryStoreName;
@@ -27,7 +28,6 @@ public class Helpers
         //Execute each selected file and write the result to _excelPackage
         foreach (var filename in GetFileList(MakeTag(technology)))
         {
-            //see bellow
             WriteToExcel(filename, _excelPackage, siteId);
         }
         return _excelPackage;
@@ -38,11 +38,23 @@ public class Helpers
         //self explanatory
         var dataTable = new DataTable();
         using var connection = new SqlConnection(_connectionString);
-        connection.Open();
-        var command = new SqlCommand(query, connection);
-        using var reader = command.ExecuteReader();
-        dataTable.Load(reader);
-        connection.Close();
+        try
+        {
+            connection.Open();
+            var command = new SqlCommand(query, connection);
+            using var reader = command.ExecuteReader();
+            dataTable.Load(reader);
+        }
+        catch (SqlException exception)
+        {
+            Log.Error("Could not execute query:\n---\n{query}\n---\n", query);
+            exception.Data.Add("query", query);
+            throw;
+        }
+        finally
+        {
+            connection.Close();
+        }
         return dataTable;
     }
 
