@@ -1,35 +1,56 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
+using System.Text.RegularExpressions;
 using OfficeOpenXml;
 using Serilog;
 
 namespace WOC;
 
-public abstract class Helpers
+public abstract partial class Helpers
 {
-    private static string? _path;
-    private static string? _queryStoreName;
-    private static string _connectionString = null!;
+    private static string _path = string.Empty;
+    private static string _queryStoreName = string.Empty;
+    private static string _connectionString = string.Empty;
+    private static string _tag = string.Empty;
+    private static string _siteId = string.Empty;
     private static ExcelPackage _excelPackage = null!;
 
-    public static void Init(IConfiguration settings)
+    [GeneratedRegex(@"---(?<num>\d*)(?<name>\w+)\.sql$")]
+    private static partial Regex LabelRegex();
+
+    [GeneratedRegex(@"^[A-Za-z]{2}\d{4}$")]
+    private static partial Regex SiteIdRegex();
+
+    public static void Init(IConfiguration settings, string tech, string siteId)
     {
         //a method for initializing the static class so it can have access to the applicationSettings
+        _excelPackage = new ExcelPackage(new MemoryStream());
+        _tag = MakeTag(tech);
+        _siteId = SiteIdRegex().IsMatch(siteId.ToUpper())
+            ? siteId.ToUpper()
+            : throw new InvalidDataException("The SiteID is not in the correct format!");
         _path = settings["QueryStoreDefaultPath"] ?? AppDomain.CurrentDomain.BaseDirectory;
         _queryStoreName = settings["QueryStoreDefaultName"] ?? "QueryStore";
-        _connectionString = settings["ConnectionStrings:Atoll"] ?? throw new NullReferenceException();
-        _excelPackage = new ExcelPackage(new MemoryStream());
+        _connectionString = (MakeTag(tech) == @"(CONS)"
+                                ? settings["ConnectionStrings:Panorama"]
+                                : settings["ConnectionStrings:Atoll"]) ??
+                            throw new NullReferenceException();
     }
 
-    public static ExcelPackage GenerateExcelFile(string technology, string siteId)
+    public static ExcelPackage GenerateExcelFile()
     {
-        //Send this command once before everything else.
-        ExecuteQueryOnDB("EXEC DEV.[WOC].[UPDATE_WOC_tech_tables];");
-        //Execute each selected file and write the result to _excelPackage
-        foreach (var filename in GetFileList(MakeTag(technology)))
+        //Send this command once before everything else, except when making consistency file.
+        if (_tag != @"(CONS)")
         {
-            WriteToExcel(filename, _excelPackage, siteId);
+            ExecuteQueryOnDB("EXEC DEV.[WOC].[UPDATE_WOC_tech_tables];");
         }
+
+        //Execute each selected file and write the result to _excelPackage
+        foreach (var filename in GetFileList())
+        {
+            WriteToExcel(filename, _excelPackage);
+        }
+
         return _excelPackage;
     }
 
@@ -43,7 +64,19 @@ public abstract class Helpers
             connection.Open();
             var command = new SqlCommand(query, connection);
             using var reader = command.ExecuteReader();
-            dataTable.Load(reader);
+            if (reader.HasRows || _tag != @"(CONS)")
+            {
+                dataTable.Load(reader);
+            }
+            else
+            {
+                //In case of empty table
+                dataTable.Clear();
+                dataTable.Columns.Add("Status");
+                var emptyRow = dataTable.NewRow();
+                emptyRow["Status"] = "The query returned no data for this siteID!";
+                dataTable.Rows.Add(emptyRow);
+            }
         }
         catch (SqlException exception)
         {
@@ -55,17 +88,19 @@ public abstract class Helpers
         {
             connection.Close();
         }
+
         return dataTable;
     }
 
-    private static void WriteToExcel(string filename, ExcelPackage excelPackage, string siteId)
+    private static void WriteToExcel(string filename, ExcelPackage excelPackage)
     {
         //extracts label from filename
-        var label = filename.Split("---").Last().Split('.').First();
+        var label = LabelRegex().Match(filename).Groups["name"].Value;
         //reads script from file
-        var script = File.ReadAllText(_path +_queryStoreName + @"\" + filename)
+        var script = File.ReadAllText(_path + _queryStoreName + @"\" + filename)
             //replaces hardcoded site with whatever it's given
-            .Replace("SO1924", siteId)
+            .Replace("SO1924", _siteId)
+            .Replace("@SiteID@", $"'{_siteId}'")
             //removes the call to the stored procedure, if it is in the file
             //TODO: don't be lazy, edit your .sql files!
             .Replace("EXEC DEV.[WOC].[UPDATE_WOC_tech_tables];", "");
@@ -79,18 +114,19 @@ public abstract class Helpers
     private static string MakeTag(string technology)
     {
         //checks if the tag it's been given is allowed, if not it returns the (ALL) tag instead
-        string[] allowedTags = { "GSM", "GSM_GL", "UMTS", "LTE", "ALL", "ALL_GL" };
+        string[] allowedTags = { "GSM", "GSM_GL", "UMTS", "LTE", "ALL", "ALL_GL", "CONS" };
         var formattedTech = technology.Trim().ToUpper();
-        return allowedTags.Contains(formattedTech) 
-            ? @"(" + formattedTech + @")" 
+        return allowedTags.Contains(formattedTech)
+            ? @"(" + formattedTech + @")"
             : @"(ALL)";
     }
 
-    private static List<string> GetFileList(string tag)
+    private static List<string> GetFileList()
     {
         //gets list of filenames to execute based on the tag it's given
         var files = new DirectoryInfo(_path + _queryStoreName).GetFiles("*.sql");
-        var filteredFiles = files.Where(file => file.Name.Contains(tag)).Select(file => file.Name).ToList();
+        var filteredFiles = files.Where(file => file.Name.Contains(_tag)).Select(file => file.Name).ToList();
+        filteredFiles.Sort();
         return filteredFiles;
     }
 }

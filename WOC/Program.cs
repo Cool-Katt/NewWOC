@@ -56,8 +56,8 @@ return;
 IResult Result(IConfiguration configurationSection, string tech, string siteId)
 {
     Log.Warning($"Called for {tech} tag and {siteId} site. Baking file now...");
-    Helpers.Init(configurationSection);
-    var excelPackage = GenerateExcelFile(tech, siteId);
+    Helpers.Init(configurationSection, tech, siteId);
+    var excelPackage = GenerateExcelFile();
     return Results.File(excelPackage.GetAsByteArray(),
         contentType: @"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         fileDownloadName: $"WOC_{tech}_{siteId}.xlsx");
