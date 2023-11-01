@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Data.SqlClient;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using OfficeOpenXml;
 using Serilog;
@@ -15,7 +16,7 @@ public abstract partial class Helpers
     private static string _siteId = string.Empty;
     private static ExcelPackage _excelPackage = null!;
 
-    [GeneratedRegex(@"---(?<num>\d*)(?<name>\w+)\.sql$")]
+    [GeneratedRegex(@"---(?<num>\d{0,2})(?<name>\w+)\.sql$")]
     private static partial Regex LabelRegex();
 
     [GeneratedRegex(@"^[A-Za-z]{2}\d{4}$")]
@@ -26,12 +27,12 @@ public abstract partial class Helpers
         //a method for initializing the static class so it can have access to the applicationSettings
         _excelPackage = new ExcelPackage(new MemoryStream());
         _tag = MakeTag(tech);
-        _siteId = SiteIdRegex().IsMatch(siteId.ToUpper())
-            ? siteId.ToUpper()
+        _siteId = SiteIdRegex().IsMatch(siteId)
+            ? siteId.Equals(@"XX0000") ? "" : siteId
             : throw new InvalidDataException("The SiteID is not in the correct format!");
         _path = settings["QueryStoreDefaultPath"] ?? AppDomain.CurrentDomain.BaseDirectory;
         _queryStoreName = settings["QueryStoreDefaultName"] ?? "QueryStore";
-        _connectionString = (MakeTag(tech) == @"(CONS)"
+        _connectionString = (MakeTag(tech).Equals(@"(CONS)")
                                 ? settings["ConnectionStrings:Panorama"]
                                 : settings["ConnectionStrings:Atoll"]) ??
                             throw new NullReferenceException();
@@ -40,11 +41,7 @@ public abstract partial class Helpers
     public static ExcelPackage GenerateExcelFile()
     {
         //Send this command once before everything else, except when making consistency file.
-        if (_tag != @"(CONS)")
-        {
-            ExecuteQueryOnDB("EXEC DEV.[WOC].[UPDATE_WOC_tech_tables];");
-        }
-
+        if (!_tag.Equals(@"(CONS)")) ExecuteQueryOnDB("EXEC DEV.[WOC].[UPDATE_WOC_tech_tables];");
         //Execute each selected file and write the result to _excelPackage
         foreach (var filename in GetFileList())
         {
@@ -64,7 +61,7 @@ public abstract partial class Helpers
             connection.Open();
             var command = new SqlCommand(query, connection);
             using var reader = command.ExecuteReader();
-            if (reader.HasRows || _tag != @"(CONS)")
+            if (reader.HasRows || _tag.Equals(@"(CONS)"))
             {
                 dataTable.Load(reader);
             }
@@ -101,13 +98,15 @@ public abstract partial class Helpers
             //replaces hardcoded site with whatever it's given
             .Replace("SO1924", _siteId)
             .Replace("@SiteID@", $"'{_siteId}'")
-            //removes the call to the stored procedure, if it is in the file
-            //TODO: don't be lazy, edit your .sql files!
             .Replace("EXEC DEV.[WOC].[UPDATE_WOC_tech_tables];", "");
         //actual execution of query and saving to the _excelPackage in memory.
         var dataTable = ExecuteQueryOnDB(script);
         var worksheets = excelPackage.Workbook.Worksheets.Add(label);
         worksheets.Cells["A1"].LoadFromDataTable(dataTable, true);
+        //setting column width and timestamp formatting
+        worksheets.Cells[worksheets.Dimension.Address].AutoFitColumns();
+        if (worksheets.Cells["A1"].Value.Equals("timestamp"))
+            worksheets.Cells["A:A"].Style.Numberformat.Format = DateTimeFormatInfo.CurrentInfo.ShortDatePattern;
         excelPackage.Save();
     }
 

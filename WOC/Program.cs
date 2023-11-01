@@ -16,7 +16,7 @@ try
     var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog();
     var app = builder.Build();
-    
+
     // this is used for displaying a rudimentary error in case such occurs while executing the SQl command.
     // might change in the future, I don't know if i like this method
     app.UseExceptionHandler(c => c.Run(async context =>
@@ -30,9 +30,9 @@ try
             await context.Response.WriteAsync(html);
         }
     }));
-    
+
     var settings = app.Configuration.GetSection("WOC__Settings");
-    
+
     //mapping for GET and POST, may change in the future
     app.MapGet("/", () => "Use /woc/{tech}/{siteId}");
     app.MapGet("/woc/{tech}/{siteId}", (string tech, string siteId) => Result(settings, tech, siteId));
@@ -55,10 +55,12 @@ return;
 
 IResult Result(IConfiguration configurationSection, string tech, string siteId)
 {
-    Log.Warning($"Called for {tech} tag and {siteId} site. Baking file now...");
-    Helpers.Init(configurationSection, tech, siteId);
+    var techUpper = tech.ToUpper();
+    var siteIdUpper = siteId.ToUpper();
+    Log.Warning($"Called for {techUpper} tag and {siteIdUpper} site. Baking file now...");
+    Helpers.Init(configurationSection, techUpper, siteIdUpper);
     var excelPackage = GenerateExcelFile();
     return Results.File(excelPackage.GetAsByteArray(),
         contentType: @"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        fileDownloadName: $"WOC_{tech}_{siteId}.xlsx");
+        fileDownloadName: techUpper.Equals(@"CONS") ? $"WOC_{siteIdUpper}.xlsx" : $"WOC_{techUpper}_{siteIdUpper}.xlsx");
 }
