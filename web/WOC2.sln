@@ -1,0 +1,33 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.0.0
+MinimumVisualStudioVersion = 17.0.0.0
+
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WOC2.Server", "Server\WOC2.Server.csproj", "{70AEB1D0-148A-49B2-8808-E00500CBEF48}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WOC2.Client", "Client\WOC2.Client.csproj", "{4943B448-4E39-4CE8-8212-5A4F3B3BBDC2}"
+EndProject
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+
+		{4943B448-4E39-4CE8-8212-5A4F3B3BBDC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4943B448-4E39-4CE8-8212-5A4F3B3BBDC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4943B448-4E39-4CE8-8212-5A4F3B3BBDC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4943B448-4E39-4CE8-8212-5A4F3B3BBDC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{70AEB1D0-148A-49B2-8808-E00500CBEF48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{70AEB1D0-148A-49B2-8808-E00500CBEF48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{70AEB1D0-148A-49B2-8808-E00500CBEF48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{70AEB1D0-148A-49B2-8808-E00500CBEF48}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DA445E3B-902A-4202-9DD2-D568A1DAE6AC}
+	EndGlobalSection
+EndGlobal

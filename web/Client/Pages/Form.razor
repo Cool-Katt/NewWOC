@@ -1,0 +1,91 @@
+@page "/"
+@page "/woc2"
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject IConfiguration Configuration
+
+<PageTitle>WOC2</PageTitle>
+<RadzenRow>
+    <RadzenColumn Size="12">
+        <RadzenText Text="Work Order Tool v2.0" TextStyle="Radzen.Blazor.TextStyle.DisplayH2" TagName="Radzen.Blazor.TagName.Auto"/>
+        <RadzenCard>
+        <RadzenTemplateForm TItem="Model" Data=@model Submit=@OnSubmit>
+            <RadzenStack Orientation="Orientation.Vertical" Gap="1 rem">
+                <RadzenSelectBar @bind-Value=@create TValue="bool" Change=@(args => OnSwitchChange()) Style="padding-top: 10px; padding-bottom: 10px">
+                    <Items>
+                        <RadzenSelectBarItem Text="Create W.O." Value="false" />
+                        <RadzenSelectBarItem Text="Consistency Check" Value="true" />
+                    </Items>
+                </RadzenSelectBar>
+                <RadzenFormField Text="Site ID" Style="padding-top: 10px; padding-bottom: 10px">
+                    <ChildContent>
+                        <RadzenTextBox Name="siteId" @bind-Value=@model.SiteId Style="border-radius: 4px"/>
+                    </ChildContent>
+                    <Helper>
+                        <RadzenRequiredValidator Component="siteId" Text="Site ID is required." />
+                        <RadzenRegexValidator Component="siteId" Pattern="[A-Za-z]{2}\d{4}" Text="Please enter a valid site ID. Format is XX0000"/>
+                    </Helper>
+                </RadzenFormField>
+                <RadzenFormField Text="@(create ? "Type": "Technology")" Style="padding-top: 10px; padding-bottom: 10px">
+                    <ChildContent>
+                        <RadzenDropDown Data="@(create ? list1 : list2)" Name="tech" AllowClear="true" @bind-Value=@model.Tech/>
+                    </ChildContent>
+                    <Helper>
+                        <RadzenRequiredValidator Component="tech" Text="This field is required." />
+                    </Helper>
+                </RadzenFormField>
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="1rem" Style="padding: 10px">
+                <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" Icon="send" Text="Submit" Disabled=@ButtonDisabled/>
+            </RadzenStack>
+            </RadzenTemplateForm>
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
+
+@code {
+    class Model 
+    {
+        public string SiteId { get; set; }
+        public string Tech { get; set; }
+    }
+
+    Model model = new Model();
+    bool create = false;
+    bool ButtonDisabled = false;
+    List<string> list1 = new List<string>(){"Single site", "All sites"};
+    List<string> list2 = new List<string>(){"GSM", "GSM_GL", "UMTS", "LTE", "ALL", "ALL_GL"};
+
+    void OnSwitchChange() { model.Tech = null; model.SiteId = null; }
+
+    async void OnSubmit(Model model)
+    {
+        string apiUrl = Configuration.GetConnectionString("Address");
+        string siteId = model.Tech.Equals("All sites") ? @"XX0000" : model.SiteId;
+        string tech = list1.Contains(model.Tech) ? @"CONS" : model.Tech;
+        ButtonDisabled = true;
+        NavigationManager.NavigateTo(@$"{apiUrl}/{tech}/{siteId}");
+        #pragma warning disable     
+        InvokeAsync(async () => {
+            await Task.Delay(20000);
+            DialogService.Close();
+            NavigationManager.NavigateTo("/woc2", forceLoad: true);
+        });
+        await BusyDialog();
+    }
+
+    async Task BusyDialog()
+    {
+        await DialogService.OpenAsync("", ds =>
+    @<RadzenStack AlignItems="AlignItems.Center" Gap="2rem" Class="rz-p-12">
+        <RadzenText Text="Loading, please look at this gif for a while" TextStyle="Radzen.Blazor.TextStyle.DisplayH4" />
+        <RadzenImage Path="images/seagull.gif" Style="width: 450px;border-radius: 16px;" />
+        <RadzenText Text="This dialog will close automatically, don't refresh the page!" Style="color: red;"/>
+    </RadzenStack>, 
+    new DialogOptions() { ShowTitle = false, Style = "min-height:auto;min-width:auto;width:auto", CloseDialogOnEsc = false });
+    }
+}
