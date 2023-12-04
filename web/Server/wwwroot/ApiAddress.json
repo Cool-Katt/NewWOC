@@ -1,0 +1,5 @@
+{
+  "ConnectionStrings": {
+    "Address": "api base URL goes here"
+  }
+}

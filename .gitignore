@@ -550,3 +550,4 @@ FodyWeavers.xsd
 
 # End of https://www.toptal.com/developers/gitignore/api/jetbrains+all,visualstudio,rider
 WOC/appsettings.Development.json
+web/Server/appsettings.Development.json
