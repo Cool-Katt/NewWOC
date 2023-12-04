@@ -3,7 +3,8 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
-appsettings.json
+*/appsettings.json
+*/.idea/
 WOC/logs
 ######################################################################################################
 # Created by https://www.toptal.com/developers/gitignore/api/jetbrains+all,visualstudio,rider
