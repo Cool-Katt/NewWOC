@@ -37,6 +37,8 @@ try
     app.MapGet("/", () => "Use /woc/{tech}/{siteId}");
     app.MapGet("/woc/{tech}/{siteId}", (string tech, string siteId) => Result(settings, tech, siteId));
     app.MapPost("/woc/{tech}/{siteId}", (string tech, string siteId) => Result(settings, tech, siteId));
+    app.MapGet("/json/{tech}/{siteId}", (string tech, string siteId) => ResultJson(settings, tech, siteId));
+    app.MapPost("/json/{tech}/{siteId}", (string tech, string siteId) => ResultJson(settings, tech, siteId));
 
     app.Run();
 }
@@ -63,4 +65,20 @@ IResult Result(IConfiguration configurationSection, string tech, string siteId)
     return Results.File(excelPackage.GetAsByteArray(),
         contentType: @"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         fileDownloadName: techUpper.Equals(@"CONS") ? $"WOC_{siteIdUpper}.xlsx" : $"WOC_{techUpper}_{siteIdUpper}.xlsx");
+}
+
+
+IResult ResultJson(IConfiguration configurationSection, string tech, string siteId)
+{
+    var techUpper = tech.ToUpper();
+    var siteIdUpper = siteId.ToUpper();
+    Log.Warning($"Called for {techUpper} tag, {siteIdUpper} site and JSON response. Baking response...");
+    Helpers.Init(configurationSection, techUpper, siteIdUpper);
+    var excelPackage = GenerateExcelFile();
+    var fileDownloadName = techUpper.Equals(@"CONS") ? $"WOC_{siteIdUpper}.xlsx" : $"WOC_{techUpper}_{siteIdUpper}.xlsx";
+    var contentType = @"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    return Results.Ok(
+        new ResponseBodyAsJson(excelPackage.GetAsByteArray(), fileDownloadName, contentType)
+        );
+    
 }
