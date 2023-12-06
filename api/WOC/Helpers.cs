@@ -22,7 +22,7 @@ public abstract partial class Helpers
     [GeneratedRegex(@"^[A-Za-z]{2}\d{4}$")]
     private static partial Regex SiteIdRegex();
 
-    public static void Init(IConfiguration settings, string tech, string siteId)
+    public static void HelperInit(IConfiguration settings, string tech, string siteId)
     {
         //a method for initializing the static class so it can have access to the applicationSettings
         _excelPackage = new ExcelPackage(new MemoryStream());
@@ -43,10 +43,7 @@ public abstract partial class Helpers
         //Send this command once before everything else, except when making consistency file.
         if (!_tag.Equals(@"(CONS)")) ExecuteQueryOnDB("EXEC DEV.[WOC].[UPDATE_WOC_tech_tables];");
         //Execute each selected file and write the result to _excelPackage
-        foreach (var filename in GetFileList())
-        {
-            WriteToExcel(filename, _excelPackage);
-        }
+        foreach (var filename in GetFileList()) WriteToExcel(filename, _excelPackage);
 
         return _excelPackage;
     }

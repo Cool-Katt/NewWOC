@@ -1,9 +1,8 @@
-using Microsoft.AspNetCore.Diagnostics;
-using WOC;
 using Serilog;
+using WOC;
 using static WOC.Helpers;
 
-//some setup for logging
+// some setup for logging
 // changed minimum logging level for brevity of log files
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Warning()
@@ -15,28 +14,26 @@ try
     Log.Warning("Starting the furnaces...");
     var builder = WebApplication.CreateBuilder(args);
     builder.Host.UseSerilog();
-    var app = builder.Build();
-
-    // this is used for displaying a rudimentary error in case such occurs while executing the SQl command.
-    // might change in the future, I don't know if i like this method
-    app.UseExceptionHandler(c => c.Run(async context =>
-    {
-        var exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error;
-        if (exception != null)
+    // Exception handling
+    builder.Services.AddProblemDetails(options =>
+        options.CustomizeProblemDetails = ctx =>
         {
-            var html = File.ReadAllText("ErrorSQL.html")
-                .Replace("~sql placeholder~", exception.Data["query"]?.ToString())
-                .Replace("~message placeholder~", exception.Message);
-            await context.Response.WriteAsync(html);
-        }
-    }));
+            ctx.ProblemDetails.Extensions.Add("message", ctx.Exception?.Message);
+            ctx.ProblemDetails.Extensions.Add("query", ctx.Exception?.Data["query"]);
+        });
+
+    var app = builder.Build();
+    app.UseExceptionHandler();
 
     var settings = app.Configuration.GetSection("WOC__Settings");
 
-    //mapping for GET and POST, may change in the future
-    app.MapGet("/", () => "Use /woc/{tech}/{siteId}");
-    app.MapGet("/woc/{tech}/{siteId}", (string tech, string siteId) => Result(settings, tech, siteId));
-    app.MapPost("/woc/{tech}/{siteId}", (string tech, string siteId) => Result(settings, tech, siteId));
+    // mapping for GET and POST, may change in the future
+    app.MapGet("/", () => "Use /json/{tech}/{siteId}");
+    app.MapGet("/woc/{tech}/{siteId}", (string tech, string siteId) => DeprecatedResult(settings, tech, siteId));
+    app.MapPost("/woc/{tech}/{siteId}", (string tech, string siteId) => DeprecatedResult(settings, tech, siteId));
+    // new endpoints for JSON response
+    app.MapGet("/json/{tech}/{siteId}", (string tech, string siteId) => ResultJson(settings, tech, siteId));
+    app.MapPost("/json/{tech}/{siteId}", (string tech, string siteId) => ResultJson(settings, tech, siteId));
 
     app.Run();
 }
@@ -53,14 +50,31 @@ finally
 
 return;
 
-IResult Result(IConfiguration configurationSection, string tech, string siteId)
+[Obsolete("Use of this response has been deprecated, API should return JSON")]
+IResult DeprecatedResult(IConfiguration configurationSection, string tech, string siteId)
 {
     var techUpper = tech.ToUpper();
     var siteIdUpper = siteId.ToUpper();
     Log.Warning($"Called for {techUpper} tag and {siteIdUpper} site. Baking file now...");
-    Helpers.Init(configurationSection, techUpper, siteIdUpper);
+    HelperInit(configurationSection, techUpper, siteIdUpper);
     var excelPackage = GenerateExcelFile();
     return Results.File(excelPackage.GetAsByteArray(),
-        contentType: @"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        fileDownloadName: techUpper.Equals(@"CONS") ? $"WOC_{siteIdUpper}.xlsx" : $"WOC_{techUpper}_{siteIdUpper}.xlsx");
+        @"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        techUpper.Equals(@"CONS") ? $"WOC_{siteIdUpper}.xlsx" : $"WOC_{techUpper}_{siteIdUpper}.xlsx");
+}
+
+
+IResult ResultJson(IConfiguration configurationSection, string tech, string siteId)
+{
+    var techUpper = tech.ToUpper();
+    var siteIdUpper = siteId.ToUpper();
+    Log.Warning($"Called for {techUpper} tag and {siteIdUpper} site. Baking JSON response now...");
+    HelperInit(configurationSection, techUpper, siteIdUpper);
+    var excelPackage = GenerateExcelFile();
+    var fileDownloadName =
+        techUpper.Equals(@"CONS") ? $"WOC_{siteIdUpper}.xlsx" : $"WOC_{techUpper}_{siteIdUpper}.xlsx";
+    var contentType = @"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    return Results.Ok(
+        new ResponseBodyAsJson(excelPackage.GetAsByteArray(), fileDownloadName, contentType)
+    );
 }
