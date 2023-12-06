@@ -7,6 +7,7 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @inject IConfiguration Configuration
+@inject HttpClient Http
 
 <PageTitle>WOC2</PageTitle>
 <RadzenRow>
@@ -47,6 +48,28 @@
     </RadzenColumn>
 </RadzenRow>
 
+<script>
+    function DownloadFile(filename, contentType, content) {
+        let binaryString = window.atob(content);
+        let binaryLen = binaryString.length;
+        let bytes = new Uint8Array(binaryLen);
+        for (var i = 0; i < binaryLen; i++) {
+            var ascii = binaryString.charCodeAt(i);
+            bytes[i] = ascii;
+        }
+        let file = new File([bytes], filename, { type: contentType });
+        let exportUrl = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        document.body.appendChild(a);
+        a.href = exportUrl;
+        a.download = filename;
+        a.target = "_self";
+        a.click();
+        URL.revokeObjectURL(exportUrl);
+        document.body.removeChild(a);
+    }
+</script>
+
 @code {
     class Model 
     {
@@ -60,18 +83,38 @@
     List<string> list1 = new List<string>(){"Single site", "All sites"};
     List<string> list2 = new List<string>(){"GSM", "GSM_GL", "UMTS", "LTE", "ALL", "ALL_GL"};
 
+    async Task Download(string apiUrl, string tech, string siteId)
+    {
+        var response = await Http.GetAsync(@$"{apiUrl}/{tech}/{siteId}");
+        if (response.IsSuccessStatusCode)  
+        {
+            var parsed = await response.Content.ReadFromJsonAsync<JsonElement>();
+            var fileName = parsed.GetProperty("fileName").GetString();
+            var fileType = parsed.GetProperty("contentType").GetString();
+            var fileCont = parsed.GetProperty("fileContents").GetString();
+            await JSRuntime.InvokeVoidAsync("DownloadFile", fileName, fileType, fileCont);
+        } else {
+            var parsed = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Console.WriteLine(parsed);
+            var title = parsed.GetProperty("title").GetString();
+            var message = parsed.GetProperty("message").GetString();
+            var query = parsed.GetProperty("query").GetString();
+            await ErrorDialog(title, message, query);
+        }
+        
+    }
+
     void OnSwitchChange() { model.Tech = null; model.SiteId = null; }
 
     async void OnSubmit(Model model)
     {
-        string apiUrl = Configuration.GetConnectionString("Address");
+        string apiUrl = Configuration.GetConnectionString("Json");
         string siteId = model.Tech.Equals("All sites") ? @"XX0000" : model.SiteId;
         string tech = list1.Contains(model.Tech) ? @"CONS" : model.Tech;
         ButtonDisabled = true;
-        NavigationManager.NavigateTo(@$"{apiUrl}/{tech}/{siteId}");
         #pragma warning disable     
         InvokeAsync(async () => {
-            await Task.Delay(20000);
+            await Download(apiUrl, tech, siteId);
             DialogService.Close();
             NavigationManager.NavigateTo("/woc2", forceLoad: true);
         });
@@ -87,5 +130,16 @@
         <RadzenText Text="This dialog will close automatically, don't refresh the page!" Style="color: red;"/>
     </RadzenStack>, 
     new DialogOptions() { ShowTitle = false, Style = "min-height:auto;min-width:auto;width:auto", CloseDialogOnEsc = false });
+    }
+
+    async Task ErrorDialog(string title, string message, string query)
+    {
+        await DialogService.OpenAsync("", ds =>
+    @<RadzenStack AlignItems="AlignItems.Center" Gap="2rem" Class="rz-p-12">
+        <RadzenText Text=@title TextStyle="Radzen.Blazor.TextStyle.DisplayH4" />
+        <RadzenText Text=@message/>
+        <RadzenTextArea Style="width: 100%; height: 30vh; color: #44525e;" Disabled="true" Value=@query/>
+    </RadzenStack>, 
+    new DialogOptions() { ShowTitle = false, Style = "min-height:auto;min-width:auto;width:auto", CloseDialogOnEsc = true });
     }
 }
