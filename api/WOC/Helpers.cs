@@ -16,10 +16,10 @@ public abstract partial class Helpers
     private static string _siteId = string.Empty;
     private static ExcelPackage _excelPackage = null!;
 
-    [GeneratedRegex(@"---(?<num>\d{0,2})(?<name>\w+)\.sql$")]
+    [GeneratedRegex(pattern: @"---(?<num>\d{0,2})(?<name>\w+)\.sql$")]
     private static partial Regex LabelRegex();
 
-    [GeneratedRegex(@"^[A-Za-z]{2}\d{4}$")]
+    [GeneratedRegex(pattern:@"^[A-Za-z]{2}\d{4}$")]
     private static partial Regex SiteIdRegex();
 
     public static void HelperInit(IConfiguration settings, string tech, string siteId)
@@ -104,6 +104,8 @@ public abstract partial class Helpers
         worksheets.Cells[worksheets.Dimension.Address].AutoFitColumns();
         if (worksheets.Cells["A1"].Value.Equals("timestamp"))
             worksheets.Cells["A:A"].Style.Numberformat.Format = DateTimeFormatInfo.CurrentInfo.ShortDatePattern;
+        if (worksheets.Name.Equals("Intelligent_Power_Off"))
+            worksheets.Columns[1].Width = 40;
         excelPackage.Save();
     }
 
